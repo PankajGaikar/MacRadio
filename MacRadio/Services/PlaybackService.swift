@@ -22,9 +22,14 @@ final class PlaybackService: NSObject, ObservableObject {
         }
     }
     
+    // Icecast metadata
+    @Published var currentTitle: String?
+    @Published var currentArtist: String?
+    
     private var player: AVPlayer?
     private var playerItem: AVPlayerItem?
     private var playbackSuccessCallback: ((Station) -> Void)?
+    private var metadataObserver: NSKeyValueObservation?
     
     override init() {
         super.init()
@@ -59,13 +64,33 @@ final class PlaybackService: NSObject, ObservableObject {
         currentStation = station
         playbackSuccessCallback = onSuccess
         
-        // Create player
-        playerItem = AVPlayerItem(url: url)
+        // Create player with Icecast metadata support
+        let asset = AVURLAsset(url: url)
+        
+        // Enable timed metadata for Icecast streams using modern API
+        if #available(macOS 13.0, *) {
+            Task {
+                do {
+                    _ = try await asset.load(.availableMetadataFormats)
+                } catch {
+                    // Silently fail - metadata is optional
+                }
+            }
+        } else {
+            asset.loadValuesAsynchronously(forKeys: ["availableMetadataFormats"]) {
+                // Metadata will be available through timedMetadata property
+            }
+        }
+        
+        playerItem = AVPlayerItem(asset: asset)
         player = AVPlayer(playerItem: playerItem)
         player?.volume = volume
         
         // Observe status
         playerItem?.addObserver(self, forKeyPath: "status", options: [.new], context: nil)
+        
+        // Observe timed metadata for Icecast streams
+        observeTimedMetadata()
         
         // Observe playback end
         NotificationCenter.default.addObserver(
@@ -104,12 +129,47 @@ final class PlaybackService: NSObject, ObservableObject {
         player?.pause()
         playerItem?.removeObserver(self, forKeyPath: "status")
         NotificationCenter.default.removeObserver(self)
+        metadataObserver?.invalidate()
+        metadataObserver = nil
         player = nil
         playerItem = nil
         currentStation = nil
+        currentTitle = nil
+        currentArtist = nil
         isPlaying = false
         isLoading = false
         playbackSuccessCallback = nil
+    }
+    
+    private func observeTimedMetadata() {
+        // Use AVPlayerItemMetadataOutput for modern metadata observation
+        let metadataOutput = AVPlayerItemMetadataOutput(identifiers: nil)
+        metadataOutput.setDelegate(self, queue: DispatchQueue.main)
+        
+        if let playerItem = playerItem {
+            // Remove existing outputs
+            playerItem.outputs.forEach { playerItem.remove($0) }
+            playerItem.add(metadataOutput)
+        }
+        
+        // Also observe timedMetadata for older API compatibility
+        if #available(macOS 10.15, *) {
+            // Use metadata output delegate instead
+        } else {
+            metadataObserver = playerItem?.observe(\.timedMetadata, options: [.new]) { [weak self] item, _ in
+                guard let self = self, let metadata = item.timedMetadata else { return }
+                
+                Task { @MainActor in
+                    let parsed = IcecastMetadataParser.parseTimedMetadata(metadata)
+                    if let title = parsed.title {
+                        self.currentTitle = title
+                    }
+                    if let artist = parsed.artist {
+                        self.currentArtist = artist
+                    }
+                }
+            }
+        }
     }
     
     @objc private func playerDidFinishPlaying() {
@@ -151,6 +211,23 @@ final class PlaybackService: NSObject, ObservableObject {
         player?.pause()
         playerItem?.removeObserver(self, forKeyPath: "status")
         NotificationCenter.default.removeObserver(self)
+    }
+}
+
+// MARK: - AVPlayerItemMetadataOutputPushDelegate
+extension PlaybackService: @preconcurrency AVPlayerItemMetadataOutputPushDelegate {
+    nonisolated func metadataOutput(_ output: AVPlayerItemMetadataOutput, didOutputTimedMetadataGroups groups: [AVTimedMetadataGroup], from track: AVPlayerItemTrack?) {
+        Task { @MainActor in
+            for group in groups {
+                let parsed = IcecastMetadataParser.parseTimedMetadata(group.items)
+                if let title = parsed.title {
+                    self.currentTitle = title
+                }
+                if let artist = parsed.artist {
+                    self.currentArtist = artist
+                }
+            }
+        }
     }
 }
 

@@ -16,10 +16,25 @@ struct PlayerView: View {
             // Station info
             if let station = playbackService.currentStation {
                 VStack(alignment: .leading, spacing: 2) {
+                    // Station name
                     Text(station.name)
                         .font(.headline)
                         .lineLimit(1)
                     
+                    // Icecast metadata (current song/artist)
+                    if let title = playbackService.currentTitle {
+                        Text(title)
+                            .font(.subheadline)
+                            .foregroundColor(.secondary)
+                            .lineLimit(1)
+                    } else if let artist = playbackService.currentArtist {
+                        Text(artist)
+                            .font(.subheadline)
+                            .foregroundColor(.secondary)
+                            .lineLimit(1)
+                    }
+                    
+                    // Station metadata
                     HStack(spacing: 8) {
                         if let country = station.countrycode {
                             Text(country.uppercased())
