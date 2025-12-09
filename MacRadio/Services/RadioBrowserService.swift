@@ -35,18 +35,26 @@ final class RadioBrowserService {
         try await radioBrowser.search(query)
     }
     
-    func stationsByCountryCode(_ code: String, limit: Int?) async throws -> [Station] {
-        try await radioBrowser.stationsByCountryCode(code, limit: limit)
+    func stationsByCountryCode(_ code: String, limit: Int?, offset: Int? = nil) async throws -> [Station] {
+        try await radioBrowser.stationsByCountryCode(code, offset: offset, limit: limit)
     }
     
-    func stationsByCountry(_ name: String, limit: Int?) async throws -> [Station] {
-        try await radioBrowser.stationsByCountry(name, exact: true, limit: limit)
+    func stationsByCountry(_ name: String, limit: Int?, offset: Int? = nil) async throws -> [Station] {
+        try await radioBrowser.stationsByCountry(name, exact: true, offset: offset, limit: limit)
     }
     
     // MARK: - List Methods
     
     func countries() async throws -> [NamedCount] {
         try await radioBrowser.countries()
+    }
+    
+    func states(country: String?) async throws -> [StateCount] {
+        try await radioBrowser.states(country: country)
+    }
+    
+    func stationsByState(_ stateName: String, limit: Int?, offset: Int? = nil) async throws -> [Station] {
+        try await radioBrowser.stationsByState(stateName, exact: true, offset: offset, limit: limit)
     }
     
     // MARK: - Interaction Methods

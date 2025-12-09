@@ -14,10 +14,25 @@ import RadioBrowserKit
 final class StationListViewModel: ObservableObject {
     @Published var stations: [Station] = []
     @Published var isLoading = false
+    @Published var isLoadingMore = false
     @Published var errorMessage: String?
     @Published var searchText = ""
+    @Published var hasMore = true
     
     private let modelContext: ModelContext
+    private let pageSize = 50
+    private var currentOffset = 0
+    private var currentLoadType: LoadType = .topClick
+    private var currentSearchQuery: StationSearchQuery?
+    private var currentCountryCode: String?
+    private var currentStateName: String?
+    
+    enum LoadType {
+        case topClick
+        case search
+        case countryCode
+        case state
+    }
     
     init(modelContext: ModelContext) {
         self.modelContext = modelContext
@@ -26,13 +41,66 @@ final class StationListViewModel: ObservableObject {
     func loadTopStations() async {
         isLoading = true
         errorMessage = nil
+        currentOffset = 0
+        currentLoadType = .topClick
+        hasMore = true
         
         do {
-            stations = try await RadioBrowserService.shared.topClick(50)
+            stations = try await RadioBrowserService.shared.topClick(pageSize)
+            currentOffset = stations.count
+            hasMore = stations.count == pageSize
             isLoading = false
         } catch {
             errorMessage = "Failed to load stations: \(error.localizedDescription)"
             isLoading = false
+        }
+    }
+    
+    func loadMoreStations() async {
+        guard !isLoadingMore && hasMore else { return }
+        
+        isLoadingMore = true
+        
+        do {
+            let newStations: [Station]
+            
+            switch currentLoadType {
+            case .topClick:
+                // For topClick, load more items (it doesn't support offset)
+                // Load a larger batch and append new items
+                let totalToLoad = currentOffset + pageSize
+                newStations = try await RadioBrowserService.shared.topClick(totalToLoad)
+                // Only append stations we haven't seen yet
+                let newItems = Array(newStations.dropFirst(currentOffset))
+                stations.append(contentsOf: newItems)
+                hasMore = newStations.count == totalToLoad && newItems.count == pageSize
+                
+            case .search:
+                guard var query = currentSearchQuery else { return }
+                query.offset = currentOffset
+                query.limit = pageSize
+                newStations = try await RadioBrowserService.shared.search(query)
+                stations.append(contentsOf: newStations)
+                hasMore = newStations.count == pageSize
+                
+            case .countryCode:
+                guard let code = currentCountryCode else { return }
+                newStations = try await RadioBrowserService.shared.stationsByCountryCode(code, limit: pageSize, offset: currentOffset)
+                stations.append(contentsOf: newStations)
+                hasMore = newStations.count == pageSize
+                
+            case .state:
+                guard let state = currentStateName else { return }
+                newStations = try await RadioBrowserService.shared.stationsByState(state, limit: pageSize, offset: currentOffset)
+                stations.append(contentsOf: newStations)
+                hasMore = newStations.count == pageSize
+            }
+            
+            currentOffset = stations.count
+            isLoadingMore = false
+        } catch {
+            errorMessage = "Failed to load more stations: \(error.localizedDescription)"
+            isLoadingMore = false
         }
     }
     
@@ -44,15 +112,60 @@ final class StationListViewModel: ObservableObject {
         
         isLoading = true
         errorMessage = nil
+        currentOffset = 0
+        currentLoadType = .search
+        hasMore = true
+        
+        var query = StationSearchQuery()
+        query.name = searchText
+        query.limit = pageSize
+        currentSearchQuery = query
         
         do {
-            var query = StationSearchQuery()
-            query.name = searchText
-            query.limit = 50
             stations = try await RadioBrowserService.shared.search(query)
+            currentOffset = stations.count
+            hasMore = stations.count == pageSize
             isLoading = false
         } catch {
             errorMessage = "Search failed: \(error.localizedDescription)"
+            isLoading = false
+        }
+    }
+    
+    func loadStationsForCountry(_ code: String) async {
+        isLoading = true
+        errorMessage = nil
+        currentOffset = 0
+        currentLoadType = .countryCode
+        currentCountryCode = code
+        hasMore = true
+        
+        do {
+            stations = try await RadioBrowserService.shared.stationsByCountryCode(code, limit: pageSize, offset: 0)
+            currentOffset = stations.count
+            hasMore = stations.count == pageSize
+            isLoading = false
+        } catch {
+            errorMessage = "Failed to load stations: \(error.localizedDescription)"
+            isLoading = false
+        }
+    }
+    
+    func loadStationsForState(_ stateName: String) async {
+        isLoading = true
+        errorMessage = nil
+        currentOffset = 0
+        currentLoadType = .state
+        currentStateName = stateName
+        hasMore = true
+        
+        do {
+            stations = try await RadioBrowserService.shared.stationsByState(stateName, limit: pageSize, offset: 0)
+            currentOffset = stations.count
+            hasMore = stations.count == pageSize
+            isLoading = false
+        } catch {
+            errorMessage = "Failed to load stations: \(error.localizedDescription)"
             isLoading = false
         }
     }

@@ -21,7 +21,9 @@ struct CountryItem: Identifiable {
 @MainActor
 final class CountriesViewModel: ObservableObject {
     @Published var countries: [CountryItem] = []
+    @Published var states: [StateCount] = []
     @Published var isLoading = false
+    @Published var isLoadingStates = false
     @Published var errorMessage: String?
     @Published var selectedCountryCode: String? {
         didSet {
@@ -31,8 +33,17 @@ final class CountriesViewModel: ObservableObject {
                     selectedCountryCode = currentCode
                 }
             }
+            // Load states when country changes
+            if selectedCountryCode != nil {
+                Task {
+                    await loadStates(for: selectedCountryCode)
+                }
+            } else {
+                states = []
+            }
         }
     }
+    @Published var selectedStateName: String?
     
     private var currentCountryCode: String? {
         Locale.current.region?.identifier
@@ -98,6 +109,24 @@ final class CountriesViewModel: ObservableObject {
         } catch {
             errorMessage = "Failed to load countries: \(error.localizedDescription)"
             isLoading = false
+        }
+    }
+    
+    func loadStates(for countryCode: String?) async {
+        guard let code = countryCode, !code.isEmpty else {
+            states = []
+            return
+        }
+        
+        isLoadingStates = true
+        
+        do {
+            states = try await RadioBrowserService.shared.states(country: code)
+            isLoadingStates = false
+        } catch {
+            // If states fail to load, just set empty array (not all countries have states)
+            states = []
+            isLoadingStates = false
         }
     }
     
