@@ -30,9 +30,20 @@ struct StationListView: View {
                         await viewModel.searchStations()
                     }
                 }
-                .disabled(viewModel.searchText.isEmpty)
+                .disabled(viewModel.searchText.isEmpty && !viewModel.searchFilters.hasActiveFilters)
             }
             .padding()
+            
+            // Search filters
+            SearchFiltersView(filters: viewModel.searchFilters)
+            .onChange(of: viewModel.searchFilters.hasActiveFilters) { oldValue, newValue in
+                // Auto-search when filters change
+                if newValue && !viewModel.searchText.isEmpty {
+                    Task {
+                        await viewModel.searchStations()
+                    }
+                }
+            }
             
             // Station list
             if viewModel.isLoading {
