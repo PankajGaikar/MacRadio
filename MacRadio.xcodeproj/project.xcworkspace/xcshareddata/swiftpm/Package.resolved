@@ -1,0 +1,15 @@
+{
+  "originHash" : "dcadde076e39a703edf51ed340abbb466bd3424f61447ac2dc1cbe4b4ac127ff",
+  "pins" : [
+    {
+      "identity" : "radiobrowserkit?tab=readme-ov-file",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/PankajGaikar/RadioBrowserKit?tab=readme-ov-file",
+      "state" : {
+        "revision" : "b0f0aced76d6a7a30a3f059a0c79bc28081e7f63",
+        "version" : "0.0.1"
+      }
+    }
+  ],
+  "version" : 3
+}
