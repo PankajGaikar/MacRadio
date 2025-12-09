@@ -8,7 +8,6 @@
 import Foundation
 import SwiftData
 import Combine
-import RadioBrowserKit
 
 @MainActor
 final class StationListViewModel: ObservableObject {
@@ -17,7 +16,6 @@ final class StationListViewModel: ObservableObject {
     @Published var errorMessage: String?
     @Published var searchText = ""
     
-    private let radioBrowser = RadioBrowser()
     private let modelContext: ModelContext
     
     init(modelContext: ModelContext) {
@@ -29,10 +27,10 @@ final class StationListViewModel: ObservableObject {
         errorMessage = nil
         
         do {
-            stations = try await radioBrowser.topClick(50)
+            stations = try await RadioBrowserService.shared.topClick(50)
             isLoading = false
         } catch {
-            errorMessage = error.localizedDescription
+            errorMessage = "Failed to load stations: \(error.localizedDescription)"
             isLoading = false
         }
     }
@@ -50,10 +48,10 @@ final class StationListViewModel: ObservableObject {
             var query = StationSearchQuery()
             query.name = searchText
             query.limit = 50
-            stations = try await radioBrowser.search(query)
+            stations = try await RadioBrowserService.shared.search(query)
             isLoading = false
         } catch {
-            errorMessage = error.localizedDescription
+            errorMessage = "Search failed: \(error.localizedDescription)"
             isLoading = false
         }
     }

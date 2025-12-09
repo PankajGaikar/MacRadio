@@ -24,7 +24,6 @@ final class PlaybackService: NSObject, ObservableObject {
     
     private var player: AVPlayer?
     private var playerItem: AVPlayerItem?
-    private let radioBrowser = RadioBrowser()
     private var playbackSuccessCallback: ((Station) -> Void)?
     
     override init() {
@@ -83,9 +82,10 @@ final class PlaybackService: NSObject, ObservableObject {
         // Record click
         Task {
             do {
-                _ = try await radioBrowser.click(stationUUID: station.stationuuid)
+                _ = try await RadioBrowserService.shared.click(stationUUID: station.stationuuid)
             } catch {
-                // Silently fail
+                // Silently fail - don't interrupt playback
+                print("Failed to record click: \(error.localizedDescription)")
             }
         }
     }
