@@ -30,10 +30,17 @@ final class PlaybackService: NSObject, ObservableObject {
     private var playerItem: AVPlayerItem?
     private var playbackSuccessCallback: ((Station) -> Void)?
     private var metadataObserver: NSKeyValueObservation?
+    private var mediaControlsManager: MediaControlsManager?
     
     override init() {
         super.init()
         setupAudioSession()
+        setupMediaControls()
+    }
+    
+    private func setupMediaControls() {
+        mediaControlsManager = MediaControlsManager()
+        mediaControlsManager?.setupMediaControls(playbackService: self)
     }
     
     private func setupAudioSession() {
@@ -86,6 +93,9 @@ final class PlaybackService: NSObject, ObservableObject {
         player = AVPlayer(playerItem: playerItem)
         player?.volume = volume
         
+        // Enable AirPlay (macOS automatically supports AirPlay through AVPlayer)
+        player?.allowsExternalPlayback = true
+        
         // Observe status
         playerItem?.addObserver(self, forKeyPath: "status", options: [.new], context: nil)
         
@@ -104,6 +114,9 @@ final class PlaybackService: NSObject, ObservableObject {
         player?.play()
         isPlaying = true
         
+        // Update media controls
+        updateMediaControls()
+        
         // Record click
         Task {
             do {
@@ -118,11 +131,13 @@ final class PlaybackService: NSObject, ObservableObject {
     func pause() {
         player?.pause()
         isPlaying = false
+        updateMediaControls()
     }
     
     func resume() {
         player?.play()
         isPlaying = true
+        updateMediaControls()
     }
     
     func stop() {
@@ -139,6 +154,16 @@ final class PlaybackService: NSObject, ObservableObject {
         isPlaying = false
         isLoading = false
         playbackSuccessCallback = nil
+        updateMediaControls()
+    }
+    
+    private func updateMediaControls() {
+        mediaControlsManager?.updateNowPlaying(
+            station: currentStation,
+            title: currentTitle,
+            artist: currentArtist,
+            isPlaying: isPlaying
+        )
     }
     
     private func observeTimedMetadata() {
@@ -217,17 +242,19 @@ final class PlaybackService: NSObject, ObservableObject {
 // MARK: - AVPlayerItemMetadataOutputPushDelegate
 extension PlaybackService: @preconcurrency AVPlayerItemMetadataOutputPushDelegate {
     nonisolated func metadataOutput(_ output: AVPlayerItemMetadataOutput, didOutputTimedMetadataGroups groups: [AVTimedMetadataGroup], from track: AVPlayerItemTrack?) {
-        Task { @MainActor in
-            for group in groups {
-                let parsed = IcecastMetadataParser.parseTimedMetadata(group.items)
-                if let title = parsed.title {
-                    self.currentTitle = title
+                Task { @MainActor in
+                    for group in groups {
+                        let parsed = IcecastMetadataParser.parseTimedMetadata(group.items)
+                        if let title = parsed.title {
+                            self.currentTitle = title
+                        }
+                        if let artist = parsed.artist {
+                            self.currentArtist = artist
+                        }
+                    }
+                    // Update media controls when metadata changes
+                    self.updateMediaControls()
                 }
-                if let artist = parsed.artist {
-                    self.currentArtist = artist
-                }
-            }
-        }
     }
 }
 
