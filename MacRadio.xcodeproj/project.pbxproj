@@ -6,6 +6,10 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		6C56A7BA2EE82E2900399E69 /* RadioBrowserKit in Frameworks */ = {isa = PBXBuildFile; productRef = 6C56A7B92EE82E2900399E69 /* RadioBrowserKit */; };
+/* End PBXBuildFile section */
+
 /* Begin PBXContainerItemProxy section */
 		6C56A78E2EE82DF200399E69 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
@@ -52,6 +56,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				6C56A7BA2EE82E2900399E69 /* RadioBrowserKit in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -112,6 +117,7 @@
 			);
 			name = MacRadio;
 			packageProductDependencies = (
+				6C56A7B92EE82E2900399E69 /* RadioBrowserKit */,
 			);
 			productName = MacRadio;
 			productReference = 6C56A77E2EE82DF000399E69 /* MacRadio.app */;
@@ -195,6 +201,9 @@
 			);
 			mainGroup = 6C56A7752EE82DF000399E69;
 			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				6C56A7B82EE82E2900399E69 /* XCLocalSwiftPackageReference "../RadioBrowserKit" */,
+			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 6C56A77F2EE82DF000399E69 /* Products */;
 			projectDirPath = "";
@@ -573,6 +582,20 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCLocalSwiftPackageReference section */
+		6C56A7B82EE82E2900399E69 /* XCLocalSwiftPackageReference "../RadioBrowserKit" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = ../RadioBrowserKit;
+		};
+/* End XCLocalSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		6C56A7B92EE82E2900399E69 /* RadioBrowserKit */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = RadioBrowserKit;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = 6C56A7762EE82DF000399E69 /* Project object */;
 }
