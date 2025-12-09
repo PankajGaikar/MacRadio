@@ -26,14 +26,6 @@ struct MacRadioApp: App {
                 emitCURL: true
             )
         )
-        
-        // Setup app to stay alive when window is closed
-        setupAppBehavior()
-    }
-    
-    private func setupAppBehavior() {
-        // Don't terminate app when last window is closed
-        NSApp.setActivationPolicy(.regular)
     }
     
     var sharedModelContainer: ModelContainer = {
@@ -77,9 +69,10 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         return false // Keep app alive when window is closed
     }
     
-    func applicationWillFinishLaunching(_ notification: Notification) {
-        // Hide dock icon when window is closed (menu bar only mode)
-        // This will be handled by menu bar manager
+    func applicationDidFinishLaunching(_ notification: Notification) {
+        // Setup app behavior after app is fully launched
+        // Don't terminate app when last window is closed
+        NSApp.setActivationPolicy(.regular)
     }
 }
 
