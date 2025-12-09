@@ -8,6 +8,7 @@
 
 /* Begin PBXBuildFile section */
 		6C56A7BA2EE82E2900399E69 /* RadioBrowserKit in Frameworks */ = {isa = PBXBuildFile; productRef = 6C56A7B92EE82E2900399E69 /* RadioBrowserKit */; };
+		6C56A8672EE83D6800399E69 /* RadioBrowserKit in Frameworks */ = {isa = PBXBuildFile; productRef = 6C56A8662EE83D6800399E69 /* RadioBrowserKit */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -56,6 +57,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				6C56A8672EE83D6800399E69 /* RadioBrowserKit in Frameworks */,
 				6C56A7BA2EE82E2900399E69 /* RadioBrowserKit in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -118,6 +120,7 @@
 			name = MacRadio;
 			packageProductDependencies = (
 				6C56A7B92EE82E2900399E69 /* RadioBrowserKit */,
+				6C56A8662EE83D6800399E69 /* RadioBrowserKit */,
 			);
 			productName = MacRadio;
 			productReference = 6C56A77E2EE82DF000399E69 /* MacRadio.app */;
@@ -202,7 +205,7 @@
 			mainGroup = 6C56A7752EE82DF000399E69;
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
-				6C56A7B82EE82E2900399E69 /* XCLocalSwiftPackageReference "../RadioBrowserKit" */,
+				6C56A8652EE83D6800399E69 /* XCRemoteSwiftPackageReference "RadioBrowserKit" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 6C56A77F2EE82DF000399E69 /* Products */;
@@ -585,16 +588,25 @@
 		};
 /* End XCConfigurationList section */
 
-/* Begin XCLocalSwiftPackageReference section */
-		6C56A7B82EE82E2900399E69 /* XCLocalSwiftPackageReference "../RadioBrowserKit" */ = {
-			isa = XCLocalSwiftPackageReference;
-			relativePath = ../RadioBrowserKit;
+/* Begin XCRemoteSwiftPackageReference section */
+		6C56A8652EE83D6800399E69 /* XCRemoteSwiftPackageReference "RadioBrowserKit" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/PankajGaikar/RadioBrowserKit?tab=readme-ov-file";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 0.0.1;
+			};
 		};
-/* End XCLocalSwiftPackageReference section */
+/* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
 		6C56A7B92EE82E2900399E69 /* RadioBrowserKit */ = {
 			isa = XCSwiftPackageProductDependency;
+			productName = RadioBrowserKit;
+		};
+		6C56A8662EE83D6800399E69 /* RadioBrowserKit */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 6C56A8652EE83D6800399E69 /* XCRemoteSwiftPackageReference "RadioBrowserKit" */;
 			productName = RadioBrowserKit;
 		};
 /* End XCSwiftPackageProductDependency section */
