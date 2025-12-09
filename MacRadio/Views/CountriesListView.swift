@@ -17,35 +17,60 @@ struct CountriesListView: View {
     @State private var isLoadingStations = false
     
     var body: some View {
-        HSplitView {
-            // Countries list
-            countriesColumn
-            
-            // States/Regions list (shown when country selected and has states)
-            if let countryCode = viewModel.selectedCountryCode, !countryCode.isEmpty, !viewModel.states.isEmpty {
-                statesColumn
+        VStack(spacing: 0) {
+            // Horizontal category grid for countries (like All-Indian-Radios-HD)
+            if !viewModel.countries.isEmpty {
+                CountryCategoryGrid(
+                    countries: viewModel.countries,
+                    selectedCountryCode: $viewModel.selectedCountryCode
+                )
+                .padding(.vertical, 8)
+                Divider()
             }
             
-            // Stations list
-            stationsColumn
+            HSplitView {
+                // States/Regions list (shown when country selected and has states)
+                if let countryCode = viewModel.selectedCountryCode, !countryCode.isEmpty, !viewModel.states.isEmpty {
+                    statesColumn
+                }
+                
+                // Stations list
+                stationsColumn
+            }
         }
         .task {
             if viewModel.countries.isEmpty {
                 await viewModel.loadCountries()
             }
         }
+        .onAppear {
+            // Load countries when view appears
+            if viewModel.countries.isEmpty {
+                Task {
+                    await viewModel.loadCountries()
+                }
+            }
+        }
         .onChange(of: viewModel.selectedCountryCode) { oldValue, newValue in
+            // Reset state selection when country changes
+            viewModel.selectedStateName = nil
+            
             if let code = newValue, !code.isEmpty {
-                // Reset state selection when country changes
-                viewModel.selectedStateName = nil
                 // Load stations if no states available
-                if viewModel.states.isEmpty {
-                    Task {
+                Task {
+                    // Wait a bit for states to load
+                    try? await Task.sleep(nanoseconds: 100_000_000) // 0.1 seconds
+                    if viewModel.states.isEmpty {
                         await loadStationsForCountry(code)
+                    } else {
+                        // Clear stations until state is selected
+                        stationListViewModel.stations = []
                     }
-                } else {
-                    // Clear stations until state is selected
-                    stationListViewModel.stations = []
+                }
+            } else {
+                // "All" selected - load top stations
+                Task {
+                    await stationListViewModel.loadTopStations()
                 }
             }
         }
@@ -59,59 +84,6 @@ struct CountriesListView: View {
     }
     
     // MARK: - View Components
-    
-    private var countriesColumn: some View {
-        Group {
-            if viewModel.isLoading {
-                ProgressView()
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-            } else if let error = viewModel.errorMessage {
-                VStack {
-                    Text("Error: \(error)")
-                        .foregroundColor(.red)
-                    Button("Retry") {
-                        Task {
-                            await viewModel.loadCountries()
-                        }
-                    }
-                }
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-            } else if viewModel.countries.isEmpty {
-                VStack {
-                    Text("No countries found")
-                        .foregroundColor(.secondary)
-                    Button("Load Countries") {
-                        Task {
-                            await viewModel.loadCountries()
-                        }
-                    }
-                }
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-            } else {
-                List(viewModel.countries.filter { $0.code != nil }, selection: $viewModel.selectedCountryCode) { country in
-                    HStack {
-                        VStack(alignment: .leading, spacing: 4) {
-                            HStack {
-                                Text(country.name)
-                                    .font(.headline)
-                                if country.isCurrentCountry {
-                                    Image(systemName: "location.fill")
-                                        .foregroundColor(.blue)
-                                        .font(.caption)
-                                }
-                            }
-                            Text("\(country.stationCount) stations")
-                                .font(.caption)
-                                .foregroundColor(.secondary)
-                        }
-                        Spacer()
-                    }
-                    .tag(country.code ?? "")
-                }
-                .frame(minWidth: 200, idealWidth: 250)
-            }
-        }
-    }
     
     private var statesColumn: some View {
         Group {
@@ -145,7 +117,63 @@ struct CountriesListView: View {
     
     private var stationsColumn: some View {
         Group {
-            if let countryCode = viewModel.selectedCountryCode, !countryCode.isEmpty {
+            if viewModel.selectedCountryCode == nil {
+                // Show top stations when "All" is selected
+                if stationListViewModel.isLoading {
+                    ProgressView()
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                } else if stationListViewModel.stations.isEmpty {
+                    VStack {
+                        Text("No stations found")
+                            .foregroundColor(.secondary)
+                        Button("Load Top Stations") {
+                            Task {
+                                await stationListViewModel.loadTopStations()
+                            }
+                        }
+                    }
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                } else {
+                    List {
+                        ForEach(stationListViewModel.stations) { station in
+                            StationRowView(
+                                station: station,
+                                isFavorite: stationListViewModel.isFavorite(station.stationuuid),
+                                isPlaying: playbackService.currentStation?.stationuuid == station.stationuuid && playbackService.isPlaying,
+                                onPlay: {
+                                    playbackService.play(station) { playedStation in
+                                        recentsViewModel.addRecent(playedStation)
+                                    }
+                                },
+                                onToggleFavorite: {
+                                    stationListViewModel.toggleFavorite(station)
+                                }
+                            )
+                        }
+                        
+                        // Loading indicator at bottom
+                        if stationListViewModel.isLoadingMore {
+                            HStack {
+                                Spacer()
+                                ProgressView()
+                                    .padding()
+                                Spacer()
+                            }
+                        }
+                        
+                        // Load more trigger
+                        if stationListViewModel.hasMore && !stationListViewModel.isLoadingMore {
+                            Color.clear
+                                .frame(height: 1)
+                                .onAppear {
+                                    Task {
+                                        await stationListViewModel.loadMoreStations()
+                                    }
+                                }
+                        }
+                    }
+                }
+            } else if let countryCode = viewModel.selectedCountryCode, !countryCode.isEmpty {
                 if isLoadingStations {
                     ProgressView()
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
