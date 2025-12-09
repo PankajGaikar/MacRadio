@@ -18,6 +18,7 @@ final class StationListViewModel: ObservableObject {
     @Published var errorMessage: String?
     @Published var searchText = ""
     @Published var hasMore = true
+    @Published var searchFilters = SearchFilters()
     
     private let modelContext: ModelContext
     private let pageSize = 50
@@ -105,19 +106,14 @@ final class StationListViewModel: ObservableObject {
     }
     
     func searchStations() async {
-        guard !searchText.isEmpty else {
-            await loadTopStations()
-            return
-        }
-        
         isLoading = true
         errorMessage = nil
         currentOffset = 0
         currentLoadType = .search
         hasMore = true
         
-        var query = StationSearchQuery()
-        query.name = searchText
+        // Build query with filters
+        var query = searchFilters.toSearchQuery(name: searchText)
         query.limit = pageSize
         currentSearchQuery = query
         
