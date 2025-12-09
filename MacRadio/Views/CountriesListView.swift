@@ -45,7 +45,7 @@ struct CountriesListView: View {
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
-                List(viewModel.countries, selection: $viewModel.selectedCountryCode) { country in
+                List(viewModel.countries.filter { $0.code != nil }, selection: $viewModel.selectedCountryCode) { country in
                     HStack {
                         VStack(alignment: .leading, spacing: 4) {
                             HStack {
@@ -63,13 +63,13 @@ struct CountriesListView: View {
                         }
                         Spacer()
                     }
-                    .tag(country.code)
+                    .tag(country.code ?? "")
                 }
                 .frame(minWidth: 200, idealWidth: 250)
             }
             
             // Stations for selected country
-            if let countryCode = viewModel.selectedCountryCode {
+            if let countryCode = viewModel.selectedCountryCode, !countryCode.isEmpty {
                 if isLoadingStations {
                     ProgressView()
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -77,6 +77,11 @@ struct CountriesListView: View {
                     VStack {
                         Text("No stations found")
                             .foregroundColor(.secondary)
+                        if let selectedCountry = viewModel.countries.first(where: { $0.code == countryCode }) {
+                            Text("\(selectedCountry.name) - \(selectedCountry.stationCount) stations available")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                        }
                     }
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                 } else {
@@ -110,21 +115,44 @@ struct CountriesListView: View {
             }
         }
         .onChange(of: viewModel.selectedCountryCode) { oldValue, newValue in
-            if let code = newValue {
-                loadStationsForCountry(code)
+            if let code = newValue, !code.isEmpty {
+                Task {
+                    await loadStationsForCountry(code)
+                }
             }
         }
     }
     
-    private func loadStationsForCountry(_ countryCode: String) {
-        isLoadingStations = true
-        stationListViewModel.stations = []
+    private func loadStationsForCountry(_ countryCode: String) async {
+        await MainActor.run {
+            isLoadingStations = true
+            stationListViewModel.stations = []
+        }
         
-        Task {
-            do {
-                stationListViewModel.stations = try await RadioBrowserService.shared.stationsByCountryCode(countryCode, limit: 100)
+        // Find the country to get its name
+        guard let country = viewModel.countries.first(where: { $0.code == countryCode }) else {
+            await MainActor.run {
                 isLoadingStations = false
-            } catch {
+                stationListViewModel.errorMessage = "Country not found"
+            }
+            return
+        }
+        
+        do {
+            // Try using country code first, fallback to country name
+            let stations: [Station]
+            if !countryCode.isEmpty {
+                stations = try await RadioBrowserService.shared.stationsByCountryCode(countryCode, limit: 100)
+            } else {
+                stations = try await RadioBrowserService.shared.stationsByCountry(country.name, limit: 100)
+            }
+            
+            await MainActor.run {
+                stationListViewModel.stations = stations
+                isLoadingStations = false
+            }
+        } catch {
+            await MainActor.run {
                 stationListViewModel.errorMessage = "Failed to load stations: \(error.localizedDescription)"
                 isLoadingStations = false
             }

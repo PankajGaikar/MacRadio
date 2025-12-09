@@ -11,7 +11,7 @@ import RadioBrowserKit
 
 /// Represents a country with its code and name
 struct CountryItem: Identifiable {
-    let id: String
+    let id: String // Use name+code combination to avoid duplicates
     let name: String
     let code: String?
     let stationCount: Int
@@ -46,19 +46,32 @@ final class CountriesViewModel: ObservableObject {
             let namedCounts = try await RadioBrowserService.shared.countries()
             
             // Convert to CountryItem and sort
-            var countryItems = namedCounts.map { namedCount in
+            // Use a Set to track seen names and avoid duplicates
+            var seenNames = Set<String>()
+            var countryItems: [CountryItem] = []
+            
+            for namedCount in namedCounts {
+                // Skip duplicates
+                if seenNames.contains(namedCount.name) {
+                    continue
+                }
+                seenNames.insert(namedCount.name)
+                
                 // Try to extract country code from name
                 // The API returns country names, we need to map them to codes
                 let code = countryCodeFromName(namedCount.name)
                 let isCurrent = code == currentCountryCode
                 
-                return CountryItem(
-                    id: namedCount.name,
+                // Use name + code (or name if code is nil) for unique ID
+                let uniqueId = code != nil ? "\(namedCount.name)-\(code!)" : namedCount.name
+                
+                countryItems.append(CountryItem(
+                    id: uniqueId,
                     name: namedCount.name,
                     code: code,
                     stationCount: namedCount.stationcount,
                     isCurrentCountry: isCurrent
-                )
+                ))
             }
             
             // Sort: current country first, then alphabetically
@@ -74,10 +87,10 @@ final class CountriesViewModel: ObservableObject {
             
             countries = countryItems
             
-            // Auto-select current country if available
+            // Auto-select current country if available (only if it has a valid code)
             if selectedCountryCode == nil, let currentCode = currentCountryCode {
-                if countryItems.contains(where: { $0.code == currentCode }) {
-                    selectedCountryCode = currentCode
+                if let currentCountry = countryItems.first(where: { $0.code == currentCode && $0.code != nil }) {
+                    selectedCountryCode = currentCountry.code
                 }
             }
             
@@ -89,15 +102,39 @@ final class CountriesViewModel: ObservableObject {
     }
     
     private func countryCodeFromName(_ name: String) -> String? {
-        // Use Locale to find country code from name
-        let locale = Locale(identifier: "en_US_POSIX")
-        for code in Locale.isoRegionCodes {
-            if let countryName = locale.localizedString(forRegionCode: code),
-               countryName.lowercased() == name.lowercased() {
-                return code
+        // Try multiple locale identifiers for better matching
+        let locales = ["en_US", "en_GB", "en"]
+        
+        for localeId in locales {
+            let locale = Locale(identifier: localeId)
+            for code in Locale.isoRegionCodes {
+                if let countryName = locale.localizedString(forRegionCode: code) {
+                    // Try exact match first
+                    if countryName.lowercased() == name.lowercased() {
+                        return code
+                    }
+                    // Try without diacritics
+                    if countryName.folding(options: .diacriticInsensitive, locale: locale).lowercased() == 
+                       name.folding(options: .diacriticInsensitive, locale: locale).lowercased() {
+                        return code
+                    }
+                }
             }
         }
-        return nil
+        
+        // Fallback: try common name mappings
+        let commonMappings: [String: String] = [
+            "United States": "US",
+            "United Kingdom": "GB",
+            "The Netherlands": "NL",
+            "South Korea": "KR",
+            "North Korea": "KP",
+            "Russia": "RU",
+            "Czech Republic": "CZ",
+            "Vietnam": "VN"
+        ]
+        
+        return commonMappings[name]
     }
 }
 
