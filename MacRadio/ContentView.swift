@@ -10,6 +10,7 @@ import SwiftData
 
 struct ContentView: View {
     @Environment(\.modelContext) private var modelContext
+    @EnvironmentObject var menuBarManager: MenuBarManager
     @StateObject private var playbackService = PlaybackService()
     @StateObject private var stationListViewModel: StationListViewModel
     @StateObject private var favoritesViewModel: FavoritesViewModel
@@ -84,6 +85,13 @@ struct ContentView: View {
                 Divider()
                 PlayerView(playbackService: playbackService)
             }
+        }
+        .onAppear {
+            // Update menu bar icon based on playback state
+            menuBarManager.updateMenuBarIcon(isPlaying: playbackService.isPlaying)
+        }
+        .onChange(of: playbackService.isPlaying) { oldValue, newValue in
+            menuBarManager.updateMenuBarIcon(isPlaying: newValue)
         }
     }
     
