@@ -60,7 +60,7 @@ open MacRadio.xcodeproj
 
 ### Dependencies
 
-- **RadioBrowserKit**: Local Swift Package dependency (included in the project)
+- **RadioBrowserKit**: Swift Package dependency - [GitHub Repository](https://github.com/PankajGaikar/RadioBrowserKit)
 
 ## Usage
 
@@ -140,7 +140,7 @@ This project is open source. See LICENSE file for details.
 ## Acknowledgments
 
 - [Radio Browser API](https://www.radio-browser.info/) for providing the radio station database
-- [RadioBrowserKit](https://github.com/PankajGaikar/RadioBrowserKit) for the Swift API client
+- [RadioBrowserKit](https://github.com/PankajGaikar/RadioBrowserKit) - Swift Package for interacting with the Radio Browser API
 
 ## Author
 
