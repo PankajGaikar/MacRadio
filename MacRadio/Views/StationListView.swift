@@ -61,20 +61,46 @@ struct StationListView: View {
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
-                List(viewModel.stations) { station in
-                    StationRowView(
-                        station: station,
-                        isFavorite: viewModel.isFavorite(station.stationuuid),
-                        isPlaying: playbackService.currentStation?.stationuuid == station.stationuuid && playbackService.isPlaying,
-                        onPlay: {
-                            playbackService.play(station) { playedStation in
-                                recentsViewModel.addRecent(playedStation)
-                            }
-                        },
-                        onToggleFavorite: {
-                            viewModel.toggleFavorite(station)
+                ScrollViewReader { proxy in
+                    List {
+                        ForEach(viewModel.stations) { station in
+                            StationRowView(
+                                station: station,
+                                isFavorite: viewModel.isFavorite(station.stationuuid),
+                                isPlaying: playbackService.currentStation?.stationuuid == station.stationuuid && playbackService.isPlaying,
+                                onPlay: {
+                                    playbackService.play(station) { playedStation in
+                                        recentsViewModel.addRecent(playedStation)
+                                    }
+                                },
+                                onToggleFavorite: {
+                                    viewModel.toggleFavorite(station)
+                                }
+                            )
+                            .id(station.stationuuid)
                         }
-                    )
+                        
+                        // Loading indicator at bottom
+                        if viewModel.isLoadingMore {
+                            HStack {
+                                Spacer()
+                                ProgressView()
+                                    .padding()
+                                Spacer()
+                            }
+                        }
+                        
+                        // Load more trigger
+                        if viewModel.hasMore && !viewModel.isLoadingMore {
+                            Color.clear
+                                .frame(height: 1)
+                                .onAppear {
+                                    Task {
+                                        await viewModel.loadMoreStations()
+                                    }
+                                }
+                        }
+                    }
                 }
             }
         }
