@@ -47,6 +47,24 @@ struct PlayerView: View {
                                 .font(.caption)
                                 .foregroundColor(.secondary)
                         }
+                        
+                        // AirPlay indicator
+                        if playbackService.isAirPlayActive {
+                            HStack(spacing: 4) {
+                                Image(systemName: "airplayaudio")
+                                    .font(.caption)
+                                    .foregroundColor(.blue)
+                                if let deviceName = playbackService.airPlayDeviceName {
+                                    Text(deviceName)
+                                        .font(.caption)
+                                        .foregroundColor(.blue)
+                                } else {
+                                    Text("AirPlay")
+                                        .font(.caption)
+                                        .foregroundColor(.blue)
+                                }
+                            }
+                        }
                     }
                 }
             } else {
@@ -95,6 +113,12 @@ struct PlayerView: View {
             }
             .buttonStyle(.plain)
             .disabled(playbackService.currentStation == nil)
+            
+            // AirPlay route picker button (macOS 11+)
+            if #available(macOS 11.0, *) {
+                AirPlayRoutePickerButton()
+                    .frame(width: 24, height: 24)
+            }
             
             // Volume control
             HStack(spacing: 4) {

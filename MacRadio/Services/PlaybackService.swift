@@ -26,11 +26,16 @@ final class PlaybackService: NSObject, ObservableObject {
     @Published var currentTitle: String?
     @Published var currentArtist: String?
     
+    // AirPlay status
+    @Published var isAirPlayActive: Bool = false
+    @Published var airPlayDeviceName: String?
+    
     private var player: AVPlayer?
     private var playerItem: AVPlayerItem?
     private var playbackSuccessCallback: ((Station) -> Void)?
     private var metadataObserver: NSKeyValueObservation?
     private var mediaControlsManager: MediaControlsManager?
+    private var airPlayObserver: NSKeyValueObservation?
     
     override init() {
         super.init()
@@ -96,6 +101,9 @@ final class PlaybackService: NSObject, ObservableObject {
         // Enable AirPlay (macOS automatically supports AirPlay through AVPlayer)
         player?.allowsExternalPlayback = true
         
+        // Observe AirPlay status
+        observeAirPlayStatus()
+        
         // Observe status
         playerItem?.addObserver(self, forKeyPath: "status", options: [.new], context: nil)
         
@@ -146,15 +154,31 @@ final class PlaybackService: NSObject, ObservableObject {
         NotificationCenter.default.removeObserver(self)
         metadataObserver?.invalidate()
         metadataObserver = nil
+        airPlayObserver?.invalidate()
+        airPlayObserver = nil
         player = nil
         playerItem = nil
         currentStation = nil
         currentTitle = nil
         currentArtist = nil
+        isAirPlayActive = false
+        airPlayDeviceName = nil
         isPlaying = false
         isLoading = false
         playbackSuccessCallback = nil
         updateMediaControls()
+    }
+    
+    private func observeAirPlayStatus() {
+        // Observe external playback status (AirPlay)
+        airPlayObserver = player?.observe(\.isExternalPlaybackActive, options: [.new]) { [weak self] player, _ in
+            guard let self = self else { return }
+            Task { @MainActor [weak self] in
+                guard let self = self else { return }
+                self.isAirPlayActive = player.isExternalPlaybackActive
+                // Note: Device name is not directly available, but we can indicate AirPlay is active
+            }
+        }
     }
     
     private func updateMediaControls() {
