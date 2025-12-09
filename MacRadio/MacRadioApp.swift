@@ -7,9 +7,22 @@
 
 import SwiftUI
 import SwiftData
+import RadioBrowserKit
 
 @main
 struct MacRadioApp: App {
+    init() {
+        // Configure RadioBrowserKit logging
+        RadioBrowserKit.configuration = RadioBrowserConfig(
+            logging: LogConfiguration(
+                enabled: [.network, .mirrors, .api, .decode, .general],
+                minLevel: .debug,
+                redactPII: false,
+                emitCURL: true
+            )
+        )
+    }
+    
     var sharedModelContainer: ModelContainer = {
         let schema = Schema([
             FavoriteStation.self,
