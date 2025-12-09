@@ -14,11 +14,13 @@ struct ContentView: View {
     @StateObject private var stationListViewModel: StationListViewModel
     @StateObject private var favoritesViewModel: FavoritesViewModel
     @StateObject private var recentsViewModel: RecentsViewModel
+    @StateObject private var countriesViewModel = CountriesViewModel()
     
     @State private var selectedSection: Section = .browse
     
     enum Section: String, CaseIterable {
         case browse = "Browse"
+        case countries = "Countries"
         case favorites = "Favorites"
         case recents = "Recents"
     }
@@ -56,6 +58,13 @@ struct ContentView: View {
                             playbackService: playbackService,
                             recentsViewModel: recentsViewModel
                         )
+                    case .countries:
+                        CountriesListView(
+                            viewModel: countriesViewModel,
+                            playbackService: playbackService,
+                            recentsViewModel: recentsViewModel,
+                            stationListViewModel: stationListViewModel
+                        )
                     case .favorites:
                         FavoritesListView(
                             viewModel: favoritesViewModel,
@@ -82,6 +91,8 @@ struct ContentView: View {
         switch section {
         case .browse:
             return "radio"
+        case .countries:
+            return "globe"
         case .favorites:
             return "heart.fill"
         case .recents:
