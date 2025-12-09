@@ -8,6 +8,7 @@
 import Foundation
 import SwiftData
 import Combine
+import RadioBrowserKit
 
 @MainActor
 final class StationListViewModel: ObservableObject {
