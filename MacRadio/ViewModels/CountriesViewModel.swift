@@ -27,19 +27,13 @@ final class CountriesViewModel: ObservableObject {
     @Published var errorMessage: String?
     @Published var selectedCountryCode: String? {
         didSet {
-            // Auto-select current country if available
-            if selectedCountryCode == nil, let currentCode = currentCountryCode {
-                if countries.contains(where: { $0.code == currentCode }) {
-                    selectedCountryCode = currentCode
+            // Load states when country changes (defer to avoid publishing during view updates)
+            Task { @MainActor in
+                if let code = selectedCountryCode {
+                    await loadStates(for: code)
+                } else {
+                    states = []
                 }
-            }
-            // Load states when country changes
-            if selectedCountryCode != nil {
-                Task {
-                    await loadStates(for: selectedCountryCode)
-                }
-            } else {
-                states = []
             }
         }
     }
@@ -99,9 +93,12 @@ final class CountriesViewModel: ObservableObject {
             countries = countryItems
             
             // Auto-select current country if available (only if it has a valid code)
+            // Do this in a Task to avoid publishing during view updates
             if selectedCountryCode == nil, let currentCode = currentCountryCode {
                 if let currentCountry = countryItems.first(where: { $0.code == currentCode && $0.code != nil }) {
-                    selectedCountryCode = currentCountry.code
+                    Task { @MainActor in
+                        selectedCountryCode = currentCountry.code
+                    }
                 }
             }
             
@@ -121,7 +118,10 @@ final class CountriesViewModel: ObservableObject {
         isLoadingStates = true
         
         do {
-            states = try await RadioBrowserService.shared.states(country: code)
+            let allStates = try await RadioBrowserService.shared.states(country: code)
+            // Filter states to ensure they match the selected country code
+            // The API might return states from other countries, so we filter by the country field
+            states = allStates.filter { $0.country.uppercased() == code.uppercased() }
             isLoadingStates = false
         } catch {
             // If states fail to load, just set empty array (not all countries have states)
