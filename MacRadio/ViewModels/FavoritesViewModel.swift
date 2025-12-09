@@ -34,6 +34,34 @@ final class FavoritesViewModel: ObservableObject {
         loadFavorites()
     }
     
+    func isFavorite(_ stationUUID: String) -> Bool {
+        let descriptor = FetchDescriptor<FavoriteStation>(
+            predicate: #Predicate { $0.stationUUID == stationUUID }
+        )
+        return (try? modelContext.fetch(descriptor).first) != nil
+    }
+    
+    func addFavorite(from station: Station) {
+        guard !isFavorite(station.stationuuid) else { return }
+        let favorite = FavoriteStation(from: station)
+        modelContext.insert(favorite)
+        try? modelContext.save()
+        loadFavorites()
+    }
+    
+    func toggleFavorite(from station: Station) {
+        if isFavorite(station.stationuuid) {
+            let descriptor = FetchDescriptor<FavoriteStation>(
+                predicate: #Predicate { $0.stationUUID == station.stationuuid }
+            )
+            if let favorite = try? modelContext.fetch(descriptor).first {
+                removeFavorite(favorite)
+            }
+        } else {
+            addFavorite(from: station)
+        }
+    }
+    
     func toStation(_ favorite: FavoriteStation) -> Station? {
         // Create a JSON representation and decode it as Station
         let json: [String: Any?] = [
