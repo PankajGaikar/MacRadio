@@ -35,6 +35,16 @@ final class RadioBrowserService {
         try await radioBrowser.search(query)
     }
     
+    func stationsByCountryCode(_ code: String, limit: Int?) async throws -> [Station] {
+        try await radioBrowser.stationsByCountryCode(code, limit: limit)
+    }
+    
+    // MARK: - List Methods
+    
+    func countries() async throws -> [NamedCount] {
+        try await radioBrowser.countries()
+    }
+    
     // MARK: - Interaction Methods
     
     func click(stationUUID: String) async throws -> ClickResponse {
