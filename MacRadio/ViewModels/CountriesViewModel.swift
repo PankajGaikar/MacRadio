@@ -65,10 +65,16 @@ final class CountriesViewModel: ObservableObject {
                 // Try to extract country code from name
                 // The API returns country names, we need to map them to codes
                 let code = countryCodeFromName(namedCount.name)
+                
+                // Only include countries with valid codes (required for API calls)
+                guard let code = code, !code.isEmpty else {
+                    continue
+                }
+                
                 let isCurrent = code == currentCountryCode
                 
-                // Use name + code (or name if code is nil) for unique ID
-                let uniqueId = code != nil ? "\(namedCount.name)-\(code!)" : namedCount.name
+                // Use name + code for unique ID
+                let uniqueId = "\(namedCount.name)-\(code)"
                 
                 countryItems.append(CountryItem(
                     id: uniqueId,
@@ -160,7 +166,9 @@ final class CountriesViewModel: ObservableObject {
             "North Korea": "KP",
             "Russia": "RU",
             "Czech Republic": "CZ",
-            "Vietnam": "VN"
+            "Vietnam": "VN",
+            "India": "IN",
+            "Afghanistan": "AF"
         ]
         
         return commonMappings[name]

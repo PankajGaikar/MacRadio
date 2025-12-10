@@ -109,8 +109,8 @@ struct CountriesListView: View {
                     }
                     .tag(nil as String?)
                     
-                    // Countries
-                    ForEach(viewModel.countries) { country in
+                    // Countries - only show those with valid codes
+                    ForEach(viewModel.countries.filter { $0.code != nil }) { country in
                         HStack {
                             VStack(alignment: .leading, spacing: 4) {
                                 HStack(spacing: 4) {
@@ -128,7 +128,7 @@ struct CountriesListView: View {
                             }
                             Spacer()
                         }
-                        .tag(country.code as String?)
+                        .tag(country.code as String?) // Ensure type matches binding
                     }
                 }
                 .frame(minWidth: 180, idealWidth: 220)
