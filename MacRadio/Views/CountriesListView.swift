@@ -49,16 +49,13 @@ struct CountriesListView: View {
             countrySearchText = ""
             
             if let code = newValue, !code.isEmpty {
-                // Load stations if no states available
+                // Always load stations for the country when selected
+                // If states are available, we'll still show country stations until a state is selected
                 Task {
-                    // Wait a bit for states to load
-                    try? await Task.sleep(nanoseconds: 100_000_000) // 0.1 seconds
-                    if viewModel.states.isEmpty {
-                        await loadStationsForCountry(code)
-                    } else {
-                        // Clear stations until state is selected
-                        stationListViewModel.stations = []
-                    }
+                    // Wait a bit for states to load first
+                    try? await Task.sleep(nanoseconds: 200_000_000) // 0.2 seconds
+                    // Load stations for the country regardless of whether it has states
+                    await loadStationsForCountry(code)
                 }
             } else {
                 // "All" selected - load top stations
@@ -69,8 +66,16 @@ struct CountriesListView: View {
         }
         .onChange(of: viewModel.selectedStateName) { oldValue, newValue in
             if let stateName = newValue, !stateName.isEmpty {
+                // State selected - load stations for that state
                 Task {
                     await loadStationsForState(stateName)
+                }
+            } else if oldValue != nil && newValue == nil {
+                // State deselected - reload country stations
+                if let countryCode = viewModel.selectedCountryCode, !countryCode.isEmpty {
+                    Task {
+                        await loadStationsForCountry(countryCode)
+                    }
                 }
             }
         }
@@ -288,18 +293,18 @@ struct CountriesListView: View {
                         .padding()
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                     } else if stationListViewModel.stations.isEmpty {
-                        VStack {
-                            if viewModel.states.isEmpty {
-                                Text("No stations found")
+                        VStack(spacing: 8) {
+                            Text("No stations found")
+                                .foregroundColor(.secondary)
+                            if let selectedCountry = viewModel.countries.first(where: { $0.code == countryCode }) {
+                                Text("\(selectedCountry.name) - \(selectedCountry.stationCount) stations available")
+                                    .font(.caption)
                                     .foregroundColor(.secondary)
-                                if let selectedCountry = viewModel.countries.first(where: { $0.code == countryCode }) {
-                                    Text("\(selectedCountry.name) - \(selectedCountry.stationCount) stations available")
-                                        .font(.caption)
+                                if !viewModel.states.isEmpty && viewModel.selectedStateName == nil {
+                                    Text("Or select a region to filter")
+                                        .font(.caption2)
                                         .foregroundColor(.secondary)
                                 }
-                            } else {
-                                Text("Select a region")
-                                    .foregroundColor(.secondary)
                             }
                         }
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
