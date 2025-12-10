@@ -15,6 +15,7 @@ struct CountriesListView: View {
     @ObservedObject var stationListViewModel: StationListViewModel
     
     @State private var isLoadingStations = false
+    @State private var countrySearchText = ""
     
     var body: some View {
         HSplitView {
@@ -43,8 +44,9 @@ struct CountriesListView: View {
             }
         }
         .onChange(of: viewModel.selectedCountryCode) { oldValue, newValue in
-            // Reset state selection when country changes
+            // Reset state selection and search when country changes
             viewModel.selectedStateName = nil
+            countrySearchText = ""
             
             if let code = newValue, !code.isEmpty {
                 // Load stations if no states available
@@ -218,62 +220,107 @@ struct CountriesListView: View {
                     }
                 }
             } else if let countryCode = viewModel.selectedCountryCode, !countryCode.isEmpty {
-                if isLoadingStations {
-                    ProgressView()
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
-                } else if stationListViewModel.stations.isEmpty {
-                    VStack {
-                        if viewModel.states.isEmpty {
-                            Text("No stations found")
-                                .foregroundColor(.secondary)
-                            if let selectedCountry = viewModel.countries.first(where: { $0.code == countryCode }) {
-                                Text("\(selectedCountry.name) - \(selectedCountry.stationCount) stations available")
-                                    .font(.caption)
+                VStack(spacing: 0) {
+                    // Search bar for country-specific stations
+                    HStack {
+                        TextField("Search stations in \(viewModel.countries.first(where: { $0.code == countryCode })?.name ?? "country")...", text: $countrySearchText)
+                            .textFieldStyle(.roundedBorder)
+                            .onSubmit {
+                                if !countrySearchText.isEmpty {
+                                    Task {
+                                        await searchStationsInCountry(countryCode)
+                                    }
+                                } else {
+                                    // Clear search and reload all stations for country
+                                    Task {
+                                        await loadStationsForCountry(countryCode)
+                                    }
+                                }
+                            }
+                        
+                        Button("Search") {
+                            Task {
+                                if !countrySearchText.isEmpty {
+                                    await searchStationsInCountry(countryCode)
+                                } else {
+                                    await loadStationsForCountry(countryCode)
+                                }
+                            }
+                        }
+                        .disabled(countrySearchText.isEmpty && stationListViewModel.stations.isEmpty)
+                        
+                        if !countrySearchText.isEmpty {
+                            Button {
+                                countrySearchText = ""
+                                Task {
+                                    await loadStationsForCountry(countryCode)
+                                }
+                            } label: {
+                                Image(systemName: "xmark.circle.fill")
                                     .foregroundColor(.secondary)
                             }
-                        } else {
-                            Text("Select a region")
-                                .foregroundColor(.secondary)
+                            .buttonStyle(.plain)
                         }
                     }
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-                } else {
-                    List {
-                        ForEach(stationListViewModel.stations) { station in
-                            StationRowView(
-                                station: station,
-                                isFavorite: stationListViewModel.isFavorite(station.stationuuid),
-                                isPlaying: playbackService.currentStation?.stationuuid == station.stationuuid && playbackService.isPlaying,
-                                onPlay: {
-                                    playbackService.play(station) { playedStation in
-                                        recentsViewModel.addRecent(playedStation)
-                                    }
-                                },
-                                onToggleFavorite: {
-                                    stationListViewModel.toggleFavorite(station)
+                    .padding()
+                    
+                    if isLoadingStations {
+                        ProgressView()
+                            .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    } else if stationListViewModel.stations.isEmpty {
+                        VStack {
+                            if viewModel.states.isEmpty {
+                                Text("No stations found")
+                                    .foregroundColor(.secondary)
+                                if let selectedCountry = viewModel.countries.first(where: { $0.code == countryCode }) {
+                                    Text("\(selectedCountry.name) - \(selectedCountry.stationCount) stations available")
+                                        .font(.caption)
+                                        .foregroundColor(.secondary)
                                 }
-                            )
-                        }
-                        
-                        // Loading indicator at bottom
-                        if stationListViewModel.isLoadingMore {
-                            HStack {
-                                Spacer()
-                                ProgressView()
-                                    .padding()
-                                Spacer()
+                            } else {
+                                Text("Select a region")
+                                    .foregroundColor(.secondary)
                             }
                         }
-                        
-                        // Load more trigger
-                        if stationListViewModel.hasMore && !stationListViewModel.isLoadingMore {
-                            Color.clear
-                                .frame(height: 1)
-                                .onAppear {
-                                    Task {
-                                        await stationListViewModel.loadMoreStations()
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    } else {
+                        List {
+                            ForEach(stationListViewModel.stations) { station in
+                                StationRowView(
+                                    station: station,
+                                    isFavorite: stationListViewModel.isFavorite(station.stationuuid),
+                                    isPlaying: playbackService.currentStation?.stationuuid == station.stationuuid && playbackService.isPlaying,
+                                    onPlay: {
+                                        playbackService.play(station) { playedStation in
+                                            recentsViewModel.addRecent(playedStation)
+                                        }
+                                    },
+                                    onToggleFavorite: {
+                                        stationListViewModel.toggleFavorite(station)
                                     }
+                                )
+                            }
+                            
+                            // Loading indicator at bottom
+                            if stationListViewModel.isLoadingMore {
+                                HStack {
+                                    Spacer()
+                                    ProgressView()
+                                        .padding()
+                                    Spacer()
                                 }
+                            }
+                            
+                            // Load more trigger
+                            if stationListViewModel.hasMore && !stationListViewModel.isLoadingMore {
+                                Color.clear
+                                    .frame(height: 1)
+                                    .onAppear {
+                                        Task {
+                                            await stationListViewModel.loadMoreStations()
+                                        }
+                                    }
+                            }
                         }
                     }
                 }
@@ -298,6 +345,12 @@ struct CountriesListView: View {
     private func loadStationsForState(_ stateName: String) async {
         isLoadingStations = true
         await stationListViewModel.loadStationsForState(stateName)
+        isLoadingStations = false
+    }
+    
+    private func searchStationsInCountry(_ countryCode: String) async {
+        isLoadingStations = true
+        await stationListViewModel.searchStationsInCountry(countryCode, searchText: countrySearchText)
         isLoadingStations = false
     }
 }
