@@ -110,7 +110,7 @@ struct CountriesListView: View {
                     .tag(nil as String?)
                     
                     // Countries - only show those with valid codes
-                    ForEach(viewModel.countries.filter { $0.code != nil }) { country in
+                    ForEach(viewModel.countries.filter { $0.code != nil && $0.code!.count == 2 }) { country in
                         HStack {
                             VStack(alignment: .leading, spacing: 4) {
                                 HStack(spacing: 4) {
@@ -128,7 +128,7 @@ struct CountriesListView: View {
                             }
                             Spacer()
                         }
-                        .tag(country.code as String?) // Ensure type matches binding
+                        .tag(country.code! as String?) // Force unwrap is safe here since we filtered
                     }
                 }
                 .frame(minWidth: 180, idealWidth: 220)
@@ -362,9 +362,30 @@ struct CountriesListView: View {
     // MARK: - Loading Functions
     
     private func loadStationsForCountry(_ countryCode: String) async {
+        // Normalize country code - extract just the 2-letter code if in "Name-CODE" format
+        var normalizedCode = countryCode
+        if countryCode.count > 2 {
+            // Try to extract code from "Name-CODE" format
+            if let lastPart = countryCode.split(separator: "-").last, lastPart.count == 2 {
+                normalizedCode = String(lastPart).uppercased()
+            } else {
+                // Try to find the code from the countries list
+                if let country = viewModel.countries.first(where: { $0.id == countryCode || $0.name == countryCode }) {
+                    normalizedCode = country.code ?? countryCode
+                }
+            }
+        } else {
+            normalizedCode = countryCode.uppercased()
+        }
+        
+        // Only proceed if we have a valid 2-letter code
+        guard normalizedCode.count == 2 else {
+            return
+        }
+        
         isLoadingStations = true
         stationListViewModel.errorMessage = nil // Clear any previous errors
-        await stationListViewModel.loadStationsForCountry(countryCode)
+        await stationListViewModel.loadStationsForCountry(normalizedCode)
         isLoadingStations = false
     }
     
@@ -376,9 +397,30 @@ struct CountriesListView: View {
     }
     
     private func searchStationsInCountry(_ countryCode: String) async {
+        // Normalize country code - extract just the 2-letter code if in "Name-CODE" format
+        var normalizedCode = countryCode
+        if countryCode.count > 2 {
+            // Try to extract code from "Name-CODE" format
+            if let lastPart = countryCode.split(separator: "-").last, lastPart.count == 2 {
+                normalizedCode = String(lastPart).uppercased()
+            } else {
+                // Try to find the code from the countries list
+                if let country = viewModel.countries.first(where: { $0.id == countryCode || $0.name == countryCode }) {
+                    normalizedCode = country.code ?? countryCode
+                }
+            }
+        } else {
+            normalizedCode = countryCode.uppercased()
+        }
+        
+        // Only proceed if we have a valid 2-letter code
+        guard normalizedCode.count == 2 else {
+            return
+        }
+        
         isLoadingStations = true
         stationListViewModel.errorMessage = nil // Clear any previous errors
-        await stationListViewModel.searchStationsInCountry(countryCode, searchText: countrySearchText)
+        await stationListViewModel.searchStationsInCountry(normalizedCode, searchText: countrySearchText)
         isLoadingStations = false
     }
 }
