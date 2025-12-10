@@ -27,13 +27,35 @@ final class CountriesViewModel: ObservableObject {
     @Published var errorMessage: String?
     @Published var selectedCountryCode: String? {
         didSet {
-            // Load states when country changes (defer to avoid publishing during view updates)
-            Task { @MainActor in
-                if let code = selectedCountryCode {
-                    await loadStates(for: code)
+            // Validate and normalize country code (must be 2 letters)
+            if let code = selectedCountryCode {
+                // Extract just the country code if it's in "Name-CODE" format
+                let normalizedCode: String?
+                if code.count > 2, let lastTwo = code.split(separator: "-").last, lastTwo.count == 2 {
+                    normalizedCode = String(lastTwo).uppercased()
+                } else if code.count == 2 {
+                    normalizedCode = code.uppercased()
                 } else {
-                    states = []
+                    // Invalid format, try to find the code from countries list
+                    normalizedCode = countries.first(where: { $0.id == code || $0.name == code })?.code
                 }
+                
+                // Only proceed if we have a valid 2-letter code
+                if let validCode = normalizedCode, validCode.count == 2 {
+                    // Update to normalized code if different
+                    if validCode != code {
+                        selectedCountryCode = validCode
+                        return // Will trigger didSet again with correct value
+                    }
+                    Task { @MainActor in
+                        await loadStates(for: validCode)
+                    }
+                } else {
+                    // Invalid code, clear selection
+                    selectedCountryCode = nil
+                }
+            } else {
+                states = []
             }
         }
     }
@@ -116,7 +138,28 @@ final class CountriesViewModel: ObservableObject {
     }
     
     func loadStates(for countryCode: String?) async {
-        guard let code = countryCode, !code.isEmpty else {
+        guard var code = countryCode, !code.isEmpty else {
+            states = []
+            return
+        }
+        
+        // Normalize country code - extract just the 2-letter code if in "Name-CODE" format
+        if code.count > 2 {
+            // Try to extract code from "Name-CODE" format
+            if let lastPart = code.split(separator: "-").last, lastPart.count == 2 {
+                code = String(lastPart).uppercased()
+            } else {
+                // Try to find the code from the countries list
+                if let country = countries.first(where: { $0.id == code || $0.name == code }) {
+                    code = country.code ?? code
+                }
+            }
+        } else {
+            code = code.uppercased()
+        }
+        
+        // Only proceed if we have a valid 2-letter code
+        guard code.count == 2 else {
             states = []
             return
         }
