@@ -17,26 +17,17 @@ struct CountriesListView: View {
     @State private var isLoadingStations = false
     
     var body: some View {
-        VStack(spacing: 0) {
-            // Horizontal category grid for countries (like All-Indian-Radios-HD)
-            if !viewModel.countries.isEmpty {
-                CountryCategoryGrid(
-                    countries: viewModel.countries,
-                    selectedCountryCode: $viewModel.selectedCountryCode
-                )
-                .padding(.vertical, 8)
-                Divider()
+        HSplitView {
+            // Countries column
+            countriesColumn
+            
+            // States/Regions list (shown when country selected and has states)
+            if let countryCode = viewModel.selectedCountryCode, !countryCode.isEmpty, !viewModel.states.isEmpty {
+                statesColumn
             }
             
-            HSplitView {
-                // States/Regions list (shown when country selected and has states)
-                if let countryCode = viewModel.selectedCountryCode, !countryCode.isEmpty, !viewModel.states.isEmpty {
-                    statesColumn
-                }
-                
-                // Stations list
-                stationsColumn
-            }
+            // Stations list
+            stationsColumn
         }
         .task {
             if viewModel.countries.isEmpty {
@@ -84,6 +75,59 @@ struct CountriesListView: View {
     }
     
     // MARK: - View Components
+    
+    private var countriesColumn: some View {
+        Group {
+            if viewModel.isLoading {
+                ProgressView()
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+            } else if viewModel.countries.isEmpty {
+                VStack {
+                    Text("No countries available")
+                        .foregroundColor(.secondary)
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+            } else {
+                List(selection: $viewModel.selectedCountryCode) {
+                    // "All" option
+                    HStack {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("All")
+                                .font(.headline)
+                            Text("All stations")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                        }
+                        Spacer()
+                    }
+                    .tag(nil as String?)
+                    
+                    // Countries
+                    ForEach(viewModel.countries) { country in
+                        HStack {
+                            VStack(alignment: .leading, spacing: 4) {
+                                HStack(spacing: 4) {
+                                    if country.isCurrentCountry {
+                                        Image(systemName: "location.fill")
+                                            .font(.caption2)
+                                            .foregroundColor(.blue)
+                                    }
+                                    Text(country.name)
+                                        .font(.headline)
+                                }
+                                Text("\(country.stationCount) stations")
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                            }
+                            Spacer()
+                        }
+                        .tag(country.code as String?)
+                    }
+                }
+                .frame(minWidth: 180, idealWidth: 220)
+            }
+        }
+    }
     
     private var statesColumn: some View {
         Group {
