@@ -141,12 +141,29 @@ final class StationListViewModel: ObservableObject {
         hasMore = true
         
         do {
-            stations = try await RadioBrowserService.shared.stationsByCountryCode(code, limit: pageSize, offset: 0)
+            let results = try await RadioBrowserService.shared.stationsByCountryCode(code, limit: pageSize, offset: 0)
+            stations = results
             currentOffset = stations.count
             hasMore = stations.count == pageSize
+            // Clear error if successful (even if empty)
+            if stations.isEmpty {
+                errorMessage = nil
+            }
+            isLoading = false
+        } catch let error as RadioBrowserError {
+            switch error {
+            case .serverUnavailable:
+                errorMessage = "Server temporarily unavailable. Please try again."
+            case .notFound:
+                errorMessage = nil // No stations found is not an error
+            default:
+                errorMessage = "Failed to load stations: \(error.localizedDescription)"
+            }
+            stations = []
             isLoading = false
         } catch {
             errorMessage = "Failed to load stations: \(error.localizedDescription)"
+            stations = []
             isLoading = false
         }
     }
@@ -188,12 +205,35 @@ final class StationListViewModel: ObservableObject {
         currentSearchQuery = query
         
         do {
-            stations = try await RadioBrowserService.shared.search(query)
+            let results = try await RadioBrowserService.shared.search(query)
+            stations = results
             currentOffset = stations.count
             hasMore = stations.count == pageSize
+            
+            // Clear error message if search was successful (even if empty)
+            if stations.isEmpty {
+                errorMessage = nil // Don't show error for empty results
+            }
+            isLoading = false
+        } catch let error as RadioBrowserError {
+            // Handle specific RadioBrowserKit errors
+            switch error {
+            case .serverUnavailable:
+                errorMessage = "Server temporarily unavailable. Please try again."
+            case .notFound:
+                errorMessage = "No stations found matching your search."
+            case .rateLimited:
+                errorMessage = "Too many requests. Please wait a moment."
+            case .invalidRequest(let message):
+                errorMessage = "Invalid search: \(message)"
+            default:
+                errorMessage = "Search failed: \(error.localizedDescription)"
+            }
+            stations = [] // Clear stations on error
             isLoading = false
         } catch {
             errorMessage = "Search failed: \(error.localizedDescription)"
+            stations = [] // Clear stations on error
             isLoading = false
         }
     }

@@ -267,6 +267,26 @@ struct CountriesListView: View {
                     if isLoadingStations {
                         ProgressView()
                             .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    } else if let error = stationListViewModel.errorMessage {
+                        VStack(spacing: 8) {
+                            Text("Error")
+                                .font(.headline)
+                                .foregroundColor(.red)
+                            Text(error)
+                                .foregroundColor(.secondary)
+                                .multilineTextAlignment(.center)
+                            Button("Retry") {
+                                Task {
+                                    if !countrySearchText.isEmpty {
+                                        await searchStationsInCountry(countryCode)
+                                    } else {
+                                        await loadStationsForCountry(countryCode)
+                                    }
+                                }
+                            }
+                        }
+                        .padding()
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
                     } else if stationListViewModel.stations.isEmpty {
                         VStack {
                             if viewModel.states.isEmpty {
@@ -338,18 +358,21 @@ struct CountriesListView: View {
     
     private func loadStationsForCountry(_ countryCode: String) async {
         isLoadingStations = true
+        stationListViewModel.errorMessage = nil // Clear any previous errors
         await stationListViewModel.loadStationsForCountry(countryCode)
         isLoadingStations = false
     }
     
     private func loadStationsForState(_ stateName: String) async {
         isLoadingStations = true
+        stationListViewModel.errorMessage = nil // Clear any previous errors
         await stationListViewModel.loadStationsForState(stateName)
         isLoadingStations = false
     }
     
     private func searchStationsInCountry(_ countryCode: String) async {
         isLoadingStations = true
+        stationListViewModel.errorMessage = nil // Clear any previous errors
         await stationListViewModel.searchStationsInCountry(countryCode, searchText: countrySearchText)
         isLoadingStations = false
     }
