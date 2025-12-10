@@ -80,6 +80,10 @@ final class StationListViewModel: ObservableObject {
                 guard var query = currentSearchQuery else { return }
                 query.offset = currentOffset
                 query.limit = pageSize
+                // Preserve country code if we're searching within a country
+                if let countryCode = currentCountryCode {
+                    query.countrycode = countryCode
+                }
                 newStations = try await RadioBrowserService.shared.search(query)
                 stations.append(contentsOf: newStations)
                 hasMore = newStations.count == pageSize
@@ -162,6 +166,34 @@ final class StationListViewModel: ObservableObject {
             isLoading = false
         } catch {
             errorMessage = "Failed to load stations: \(error.localizedDescription)"
+            isLoading = false
+        }
+    }
+    
+    func searchStationsInCountry(_ countryCode: String, searchText: String) async {
+        isLoading = true
+        errorMessage = nil
+        currentOffset = 0
+        currentLoadType = .search
+        currentCountryCode = countryCode
+        hasMore = true
+        
+        // Build search query with country filter
+        var query = StationSearchQuery()
+        query.name = searchText.isEmpty ? nil : searchText
+        query.countrycode = countryCode
+        query.limit = pageSize
+        query.offset = 0
+        query.hidebroken = true
+        currentSearchQuery = query
+        
+        do {
+            stations = try await RadioBrowserService.shared.search(query)
+            currentOffset = stations.count
+            hasMore = stations.count == pageSize
+            isLoading = false
+        } catch {
+            errorMessage = "Search failed: \(error.localizedDescription)"
             isLoading = false
         }
     }
