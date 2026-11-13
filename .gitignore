@@ -1,0 +1,9 @@
+
+# Xcode user data
+**/xcuserdata/
+*.xcuserstate
+
+# Firebase (keep local only)
+GoogleService-Info.plist
+**/GoogleService-Info.plist
+*.xcbkptlist
